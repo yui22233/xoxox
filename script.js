@@ -1,62 +1,200 @@
 const board = document.getElementById("board");
 const statusText = document.getElementById("status");
 
-let currentPlayer = "X";
-let cells = Array(9).fill("");
-let gameOver = false;
+const size = 5;
+const maxPieces = 4;
 
-function render() {
+let currentPlayer = "X";
+let gameActive = true;
+
+let cells = [];
+
+let playerMoves = {
+  X: [],
+  O: []
+};
+
+function createBoard() {
+
   board.innerHTML = "";
 
-  cells.forEach((cell, i) => {
-    const div = document.createElement("div");
-    div.className = "cell";
-    div.innerText = cell;
-    div.onclick = () => handleClick(i);
-    board.appendChild(div);
+  cells = [];
+
+  for(let i = 0; i < size * size; i++) {
+
+    const cell = document.createElement("div");
+
+    cell.classList.add("cell");
+
+    cell.dataset.index = i;
+
+    cell.addEventListener("click", handleClick);
+
+    board.appendChild(cell);
+
+    cells.push(cell);
+  }
+}
+
+function handleClick(e) {
+
+  const index = e.target.dataset.index;
+
+  if(!gameActive) return;
+
+  if(cells[index].textContent !== "") return;
+
+  placeMark(index, currentPlayer);
+
+  if(checkWinner(currentPlayer)) {
+
+    statusText.textContent =
+      `🎉 玩家 ${currentPlayer} 獲勝！`;
+
+    gameActive = false;
+
+    revealAll();
+
+    return;
+  }
+
+  currentPlayer =
+    currentPlayer === "X" ? "O" : "X";
+
+  statusText.textContent =
+    `玩家 ${currentPlayer} 回合`;
+}
+
+function placeMark(index, player) {
+
+  const cell = cells[index];
+
+  cell.textContent = player;
+
+  cell.classList.remove("hidden");
+
+  playerMoves[player].push(index);
+
+  // 超過4顆 -> 移除最舊棋子
+  if(playerMoves[player].length > maxPieces) {
+
+    const oldIndex =
+      playerMoves[player].shift();
+
+    cells[oldIndex].textContent = "";
+
+    cells[oldIndex].classList.remove("hidden");
+  }
+
+  // 2秒後隱形
+  setTimeout(() => {
+
+    if(cell.textContent !== "") {
+
+      cell.classList.add("hidden");
+    }
+
+  }, 2000);
+}
+
+function revealAll() {
+
+  cells.forEach(cell => {
+
+    cell.classList.remove("hidden");
   });
 }
 
-function handleClick(i) {
-  if (cells[i] !== "" || gameOver) return;
+function checkWinner(player) {
 
-  cells[i] = currentPlayer;
+  const positions = playerMoves[player];
 
-  const winner = checkWinner();
+  for(let pos of positions) {
 
-  if (winner) {
-    statusText.innerText = winner === "平手" ? "平手!" : `玩家 ${winner} 勝利!`;
-    gameOver = true;
-  } else {
-    currentPlayer = currentPlayer === "X" ? "O" : "X";
-    statusText.innerText = `玩家 ${currentPlayer} 回合`;
-  }
+    let row = Math.floor(pos / size);
+    let col = pos % size;
 
-  render();
-}
-
-function checkWinner() {
-  const wins = [
-    [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8],
-    [0,4,8],[2,4,6]
-  ];
-
-  for (let [a,b,c] of wins) {
-    if (cells[a] && cells[a] === cells[b] && cells[a] === cells[c]) {
-      return cells[a];
+    if(
+      checkDirection(row, col, 1, 0, player) ||
+      checkDirection(row, col, 0, 1, player) ||
+      checkDirection(row, col, 1, 1, player) ||
+      checkDirection(row, col, 1, -1, player)
+    ) {
+      return true;
     }
   }
 
-  return cells.includes("") ? null : "平手";
+  return false;
+}
+
+function checkDirection(row, col, rowDir, colDir, player) {
+
+  let count = 1;
+
+  count += countCells(
+    row,
+    col,
+    rowDir,
+    colDir,
+    player
+  );
+
+  count += countCells(
+    row,
+    col,
+    -rowDir,
+    -colDir,
+    player
+  );
+
+  return count >= 4;
+}
+
+function countCells(
+  row,
+  col,
+  rowDir,
+  colDir,
+  player
+) {
+
+  let count = 0;
+
+  row += rowDir;
+  col += colDir;
+
+  while(
+    row >= 0 &&
+    row < size &&
+    col >= 0 &&
+    col < size &&
+    cells[row * size + col].textContent === player
+  ) {
+
+    count++;
+
+    row += rowDir;
+    col += colDir;
+  }
+
+  return count;
 }
 
 function restart() {
-  cells = Array(9).fill("");
+
   currentPlayer = "X";
-  gameOver = false;
-  statusText.innerText = "玩家 X 回合";
-  render();
+
+  gameActive = true;
+
+  playerMoves = {
+    X: [],
+    O: []
+  };
+
+  statusText.textContent =
+    "玩家 X 回合";
+
+  createBoard();
 }
 
-render();
+createBoard();
